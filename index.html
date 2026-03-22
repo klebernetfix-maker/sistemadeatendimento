@@ -2618,6 +2618,7 @@
       return {
         currentUser: null,
         currentRole: "Administrador",
+        adminName: "Administrador",
         adminPassword: "admin",
         adminEmail: "admin@sisvip.local",
         editingRecordId: null,
@@ -3485,7 +3486,7 @@
     }
 
     function applyUserToSidebar() {
-      const name = state.currentUser || "Administrador";
+      const name = state.currentUser || state.adminName || "Administrador";
       const role = state.currentUser ? state.currentRole : "Aguardando login";
       document.getElementById("sidebar-user-name").textContent = name;
       document.getElementById("sidebar-user-role").textContent = role;
@@ -3534,7 +3535,7 @@
           state.adminPassword = await hashPassword(pass);
           persistState(false);
         }
-        state.currentUser = "Administrador";
+        state.currentUser = state.adminName || "Administrador";
         state.currentRole = "Administrador";
         syncLoginScreen();
         applyUserToSidebar();
@@ -5101,6 +5102,12 @@
         '</div>' +
         '<div class="settings-section">' +
           '<div class="settings-section-head"><div><div class="settings-section-title">🔐 Seguranca</div><div class="settings-section-note">Ajustes que impactam acesso, sessao e rastreabilidade das alteracoes.</div></div></div>' +
+          '<div class="settings-grid-2" style="margin-bottom:14px;">' +
+            settingsInput("cfg-admin-name", "Nome do administrador", state.adminName || "Administrador") +
+            settingsInput("cfg-admin-email", "Email do administrador", state.adminEmail || "admin@sisvip.local") +
+            settingsPasswordInput("cfg-admin-pass", "Nova senha do administrador", "", "Deixe em branco para manter a senha atual.") +
+            settingsPasswordInput("cfg-admin-pass-confirm", "Confirmar nova senha", "", "Repita a senha somente se quiser alterar o acesso do admin.") +
+          '</div>' +
           settingsToggle("Exigir login ao abrir", "Tela de login sempre ao iniciar o sistema.", !!sys.login_ao_abrir, "cfg-sys-login") +
           settingsToggle("Timeout de sessao", "Desloga automaticamente apos periodo de inatividade.", !!sys.timeout_sessao, "cfg-sys-timeout") +
           settingsToggle("Backup automatico", "Mantem a persistencia local atualizada para reduzir risco operacional.", !!sys.backup_auto, "cfg-sys-backup") +
@@ -5122,6 +5129,10 @@
 
     function settingsInput(id, label, value, full) {
       return '<div class="field ' + (full ? 'full' : '') + '"><label class="label">' + label + '</label><input class="input" id="' + id + '" value="' + esc(value) + '"></div>';
+    }
+
+    function settingsPasswordInput(id, label, value, help) {
+      return '<div class="field"><label class="label">' + label + '</label><input class="input" type="password" id="' + id + '" value="' + esc(value || "") + '">' + (help ? '<div style="font-size:11px;color:var(--text-2);line-height:1.5;margin-top:6px;">' + help + '</div>' : '') + '</div>';
     }
 
     function settingsSelect(id, label, options, selected) {
@@ -5171,7 +5182,7 @@
       renderConfiguracoes();
     }
 
-    function saveConfiguracoes() {
+    async function saveConfiguracoes() {
       const active = state.settingsTab || "empresa";
       state.settings = state.settings || {};
       if (active === "empresa") {
@@ -5266,6 +5277,23 @@
           };
         }
       } else {
+        const adminName = document.getElementById("cfg-admin-name").value.trim() || "Administrador";
+        const adminEmail = document.getElementById("cfg-admin-email").value.trim() || "admin@sisvip.local";
+        const adminPass = document.getElementById("cfg-admin-pass").value.trim();
+        const adminPassConfirm = document.getElementById("cfg-admin-pass-confirm").value.trim();
+        if ((adminPass || adminPassConfirm) && adminPass.length < 4) {
+          notify("A nova senha do administrador precisa ter pelo menos 4 caracteres");
+          return;
+        }
+        if (adminPass !== adminPassConfirm) {
+          notify("A confirmacao da senha do administrador nao confere");
+          return;
+        }
+        state.adminName = adminName;
+        state.adminEmail = adminEmail;
+        if (adminPass) {
+          state.adminPassword = await hashPassword(adminPass);
+        }
         state.settings.sistema = {
           nome_sistema: document.getElementById("cfg-sys-nome").value.trim(),
           moeda: document.getElementById("cfg-sys-moeda").value,
@@ -5278,6 +5306,10 @@
           modo_operacao: "Padrao",
           auditoria: document.getElementById("cfg-sys-auditoria").classList.contains("on")
         };
+        if (state.currentRole === "Administrador" && state.currentUser) {
+          state.currentUser = state.adminName || "Administrador";
+          applyUserToSidebar();
+        }
       }
       persistState();
       notify("Configuracoes salvas com sucesso");
