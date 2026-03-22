@@ -4071,14 +4071,20 @@
       const pendentesHoje = hoje.filter(item => item.status === "Pendente" || item.status === "Agendado");
       const sucessoHoje = hoje.filter(item => item.status === "Finalizado c/ Sucesso");
       const pendentesGeral = state.records.filter(item => item.status === "Pendente" || item.status === "Agendado");
-      const nextAction = pendentesHoje[0] || hoje[0] || null;
+      const proximosAgendados = state.records
+        .filter(item => {
+          const agendaIso = getAgendaDateIso(item);
+          return agendaIso > hojeIso && item.status === "Agendado";
+        })
+        .sort((a, b) => getAgendaDateIso(a).localeCompare(getAgendaDateIso(b)) || String(a.agendHora || "").localeCompare(String(b.agendHora || "")) || a.cod - b.cod);
+      const nextAction = pendentesHoje[0] || hoje[0] || proximosAgendados[0] || null;
 
       document.getElementById("agenda-kpi-hoje").textContent = hoje.length;
       document.getElementById("agenda-kpi-pend").textContent = pendentesHoje.length;
       document.getElementById("agenda-kpi-ok").textContent = sucessoHoje.length;
       document.getElementById("agenda-kpi-next").textContent = nextAction ? ("#" + nextAction.cod) : "--";
 
-      if (!hoje.length) {
+      if (!hoje.length && !proximosAgendados.length) {
         agendaList.innerHTML =
           '<div class="agenda-day-card">' +
             '<div class="agenda-day-title">Nenhum atendimento para hoje</div>' +
@@ -4089,7 +4095,7 @@
             '</div>' +
           '</div>';
       } else {
-        agendaList.innerHTML = hoje.map(item => {
+        const todayHtml = hoje.map(item => {
           const cliente = state.clientes.find(c => c.nome === item.cliente) || {};
           const priority = item.status === "Pendente" || item.status === "Agendado" ? "Atencao agora" : "Acompanhamento";
           return '<div class="stat-row">' +
@@ -4114,6 +4120,37 @@
             '</div>' +
           '</div>';
         }).join("");
+
+        const futurosHtml = proximosAgendados.slice(0, 6).map(item => {
+          const cliente = state.clientes.find(c => c.nome === item.cliente) || {};
+          return '<div class="stat-row">' +
+            '<div class="agenda-day-card">' +
+              '<div class="agenda-day-top">' +
+                '<div style="display:grid;gap:4px;">' +
+                  '<div class="agenda-day-title">' + esc(item.cliente) + '</div>' +
+                  '<div class="agenda-day-meta">#' + item.cod + ' • ' + esc(item.op) + ' • ' + esc(getAgendaDateLabel(item) + (item.agendHora ? " • " + item.agendHora : "")) + '</div>' +
+                '</div>' +
+                '<div style="text-align:right;display:grid;gap:6px;justify-items:end;">' +
+                  statusBadge(item.status) +
+                  '<span style="font-size:11px;font-weight:700;color:var(--blue);">Proximo agendamento</span>' +
+                '</div>' +
+              '</div>' +
+              '<div class="agenda-day-meta"><strong style="color:var(--text);">Motivo:</strong> ' + esc(item.motivo || "Sem motivo informado") + '</div>' +
+              '<div class="agenda-day-meta"><strong style="color:var(--text);">Contato:</strong> ' + esc(item.contato || cliente.tel || cliente.email || "Nao informado") + '</div>' +
+              '<div class="agenda-actions">' +
+                '<button class="btn primary small" onclick="editRecord(' + item.cod + ')">Abrir atendimento</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
+        }).join("");
+
+        agendaList.innerHTML =
+          (hoje.length
+            ? '<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--text-2);margin-bottom:10px;">Compromissos de hoje</div>' + todayHtml
+            : '<div class="agenda-day-card" style="margin-bottom:12px;"><div class="agenda-day-title">Nenhum atendimento para hoje</div><div class="agenda-day-meta">Mas voce ja tem agendamentos futuros registrados abaixo.</div></div>') +
+          (proximosAgendados.length
+            ? '<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--text-2);margin:14px 0 10px;">Proximos agendamentos</div>' + futurosHtml
+            : "");
       }
 
       const pendentes = pendentesGeral.length;
@@ -4122,7 +4159,7 @@
         '<div class="stat-row"><div class="stat-row-top"><span>Atendimentos hoje</span><strong>' + hoje.length + '</strong></div><div style="font-size:11px;color:var(--text-2);margin-top:6px;">Base diaria para acompanhamento.</div></div>' +
         '<div class="stat-row"><div class="stat-row-top"><span>Pendentes na agenda</span><strong>' + pendentes + '</strong></div><div style="font-size:11px;color:var(--text-2);margin-top:6px;">Tudo que ainda precisa de retorno.</div></div>' +
         '<div class="stat-row"><div class="stat-row-top"><span>Concluidos com sucesso</span><strong>' + sucesso + '</strong></div><div style="font-size:11px;color:var(--text-2);margin-top:6px;">Atendimentos encerrados com resultado positivo.</div></div>' +
-        '<div class="stat-row"><div class="stat-row-top"><span>Acao recomendada</span><strong>' + (nextAction ? esc(nextAction.cliente) : "Livre") + '</strong></div><div style="font-size:11px;color:var(--text-2);margin-top:6px;">' + (nextAction ? 'Abra o atendimento #' + nextAction.cod + ' para continuar.' : 'Sem urgencias registradas para agora.') + '</div></div>';
+        '<div class="stat-row"><div class="stat-row-top"><span>Acao recomendada</span><strong>' + (nextAction ? esc(nextAction.cliente) : "Livre") + '</strong></div><div style="font-size:11px;color:var(--text-2);margin-top:6px;">' + (nextAction ? ('Abra o atendimento #' + nextAction.cod + ' para continuar em ' + getAgendaDateLabel(nextAction) + '.') : 'Sem urgencias registradas para agora.') + '</div></div>';
     }
 
     function renderClientes() {
