@@ -513,6 +513,20 @@
       gap:10px;
       box-shadow:0 8px 18px rgba(26,32,53,.05);
     }
+    .agenda-day-card.today {
+      border-color: rgba(43,127,255,.24);
+      box-shadow: 0 12px 28px rgba(43,127,255,.12);
+      background: linear-gradient(180deg, rgba(255,255,255,.99) 0%, rgba(244,248,255,.98) 100%);
+    }
+    .agenda-day-card.future {
+      border-color: rgba(43,127,255,.18);
+      background: linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(248,251,255,.98) 100%);
+    }
+    .agenda-day-card.overdue {
+      border-color: rgba(214,48,48,.22);
+      background: linear-gradient(180deg, rgba(255,248,248,.98) 0%, rgba(255,255,255,.98) 100%);
+      box-shadow: 0 12px 24px rgba(214,48,48,.10);
+    }
     .agenda-day-top {
       display:flex;
       align-items:flex-start;
@@ -522,6 +536,33 @@
     .agenda-day-title { font-size:14px; font-weight:800; color:var(--text); }
     .agenda-day-meta { font-size:11px; color:var(--text-2); line-height:1.6; }
     .agenda-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .agenda-flag {
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:5px 10px;
+      border-radius:999px;
+      font-size:10px;
+      font-weight:800;
+      letter-spacing:.05em;
+      text-transform:uppercase;
+      width:max-content;
+    }
+    .agenda-flag.today {
+      color: var(--blue-2);
+      background: rgba(43,127,255,.10);
+      border: 1px solid rgba(43,127,255,.18);
+    }
+    .agenda-flag.future {
+      color: #1f5fb8;
+      background: rgba(43,127,255,.08);
+      border: 1px solid rgba(43,127,255,.16);
+    }
+    .agenda-flag.overdue {
+      color: var(--danger);
+      background: rgba(214,48,48,.08);
+      border: 1px solid rgba(214,48,48,.16);
+    }
     .client-kpis { display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; margin-bottom:16px; }
     .client-kpi {
       padding:14px;
@@ -4067,6 +4108,18 @@
       const agendaList = document.getElementById("agenda-list");
       const agendaSummary = document.getElementById("agenda-summary");
       const hojeIso = isoToday();
+      const cardState = item => {
+        const agendaIso = getAgendaDateIso(item);
+        if (agendaIso < hojeIso && (item.status === "Pendente" || item.status === "Agendado")) return "overdue";
+        if (agendaIso > hojeIso) return "future";
+        return "today";
+      };
+      const cardFlag = item => {
+        const stateName = cardState(item);
+        if (stateName === "overdue") return '<span class="agenda-flag overdue">Atrasado</span>';
+        if (stateName === "future") return '<span class="agenda-flag future">Futuro</span>';
+        return '<span class="agenda-flag today">Hoje</span>';
+      };
       const hoje = state.records.filter(item => getAgendaDateIso(item) === hojeIso);
       const pendentesHoje = hoje.filter(item => item.status === "Pendente" || item.status === "Agendado");
       const sucessoHoje = hoje.filter(item => item.status === "Finalizado c/ Sucesso");
@@ -4099,7 +4152,7 @@
           const cliente = state.clientes.find(c => c.nome === item.cliente) || {};
           const priority = item.status === "Pendente" || item.status === "Agendado" ? "Atencao agora" : "Acompanhamento";
           return '<div class="stat-row">' +
-            '<div class="agenda-day-card">' +
+            '<div class="agenda-day-card ' + cardState(item) + '">' +
               '<div class="agenda-day-top">' +
                 '<div style="display:grid;gap:4px;">' +
                   '<div class="agenda-day-title">' + esc(item.cliente) + '</div>' +
@@ -4110,6 +4163,7 @@
                   '<span style="font-size:11px;font-weight:700;color:' + ((item.status === "Pendente" || item.status === "Agendado") ? 'var(--warning)' : 'var(--success)') + ';">' + priority + '</span>' +
                 '</div>' +
               '</div>' +
+              cardFlag(item) +
               '<div class="agenda-day-meta"><strong style="color:var(--text);">Motivo:</strong> ' + esc(item.motivo || "Sem motivo informado") + '</div>' +
               '<div class="agenda-day-meta"><strong style="color:var(--text);">Contato:</strong> ' + esc(item.contato || cliente.tel || cliente.email || "Nao informado") + '</div>' +
               '<div class="agenda-day-meta"><strong style="color:var(--text);">Forma:</strong> ' + esc(item.forma || "-") + '</div>' +
@@ -4124,7 +4178,7 @@
         const futurosHtml = proximosAgendados.slice(0, 6).map(item => {
           const cliente = state.clientes.find(c => c.nome === item.cliente) || {};
           return '<div class="stat-row">' +
-            '<div class="agenda-day-card">' +
+            '<div class="agenda-day-card ' + cardState(item) + '">' +
               '<div class="agenda-day-top">' +
                 '<div style="display:grid;gap:4px;">' +
                   '<div class="agenda-day-title">' + esc(item.cliente) + '</div>' +
@@ -4135,6 +4189,7 @@
                   '<span style="font-size:11px;font-weight:700;color:var(--blue);">Proximo agendamento</span>' +
                 '</div>' +
               '</div>' +
+              cardFlag(item) +
               '<div class="agenda-day-meta"><strong style="color:var(--text);">Motivo:</strong> ' + esc(item.motivo || "Sem motivo informado") + '</div>' +
               '<div class="agenda-day-meta"><strong style="color:var(--text);">Contato:</strong> ' + esc(item.contato || cliente.tel || cliente.email || "Nao informado") + '</div>' +
               '<div class="agenda-actions">' +
