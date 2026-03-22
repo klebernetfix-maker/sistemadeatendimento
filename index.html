@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>SisVip — Visualização Profissional</title>
+    <link href="https://fonts.googleapis.com" rel="stylesheet">
+    <style>
+        :root {
+            --blue: #2b7fff; --sidebar: #1a2035; --bg: #3a8bf5;
+            --card: rgba(255,255,255,.98); --tx: #1a2035; --tx2: #4a5570;
+            --success: #1a9e5c; --warning: #c88a10; --danger: #d63030;
+            --rl: 12px; --r: 8px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { background: var(--bg); display: flex; min-height: 100vh; }
+        
+        /* Sidebar */
+        .sidebar { width: 240px; background: var(--sidebar); color: white; padding: 30px 20px; flex-shrink: 0; }
+        .sb-brand { margin-bottom: 40px; }
+        .sb-brand h2 { font-size: 26px; font-weight: 800; letter-spacing: -1px; }
+        .sb-user { background: rgba(255,255,255,0.05); padding: 12px; border-radius: var(--r); margin-bottom: 20px; font-size: 12px; }
+        
+        /* Main Content */
+        .content { flex: 1; padding: 30px; display: flex; flex-direction: column; gap: 20px; }
+        
+        /* Stats */
+        .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+        .mc { background: rgba(255,255,255,0.2); backdrop-filter: blur(10px); padding: 20px; border-radius: var(--rl); color: white; border: 1px solid rgba(255,255,255,0.2); }
+        .mv { font-size: 32px; font-weight: 800; margin: 5px 0; }
+        .ml { font-size: 11px; text-transform: uppercase; font-weight: 700; opacity: 0.8; }
+
+        /* Tabela */
+        .panel { background: var(--card); border-radius: var(--rl); box-shadow: 0 15px 40px rgba(0,0,0,0.2); overflow: hidden; }
+        .filters { padding: 15px 20px; background: white; border-bottom: 1px solid #eee; display: flex; gap: 10px; align-items: center; }
+        .fi { flex: 1; padding: 10px 15px; border-radius: var(--r); border: 1px solid #ddd; outline: none; }
+        .tbl { width: 100%; border-collapse: collapse; }
+        .tbl th { text-align: left; padding: 15px; background: #f8f9fa; font-size: 11px; text-transform: uppercase; color: var(--tx2); }
+        .tbl td { padding: 15px; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+        
+        /* Badges e Botões */
+        .sp { padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 800; display: inline-flex; align-items: center; gap: 5px; }
+        .bi { background: #eef4ff; color: var(--blue); }
+        .bd- { background: #ffeeee; color: var(--danger); }
+        .btn { padding: 8px 16px; border-radius: var(--r); border: 1px solid #ddd; cursor: pointer; font-weight: 700; font-size: 12px; transition: 0.2s; }
+        .btn-p { background: var(--blue); color: white; border: none; }
+        .btn-s { border-color: var(--success); color: var(--success); }
+        .btn-s:hover { background: var(--success); color: white; }
+
+        /* Login Overlay */
+        #login-screen { position: fixed; inset: 0; background: var(--sidebar); z-index: 9999; display: flex; align-items: center; justify-content: center; color: white; }
+        .login-box { background: white; color: var(--tx); padding: 40px; border-radius: var(--rl); width: 360px; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div id="login-screen">
+    <div class="login-box">
+        <h2 style="margin-bottom: 10px;">SisVip Login</h2>
+        <p style="font-size: 12px; margin-bottom: 25px; color: #888;">Simulação: Use <b>admin</b> ou <b>op</b></p>
+        <input type="text" id="user-input" class="fi" placeholder="Usuário (admin / op)" style="width: 100%; margin-bottom: 10px;">
+        <button onclick="fazerLogin()" class="btn btn-p" style="width: 100%; height: 45px;">Entrar no Sistema</button>
+    </div>
+</div>
+
+<div class="sidebar">
+    <div class="sb-brand"><h2>SisVip</h2><p>DASHBOARD V1.0</p></div>
+    <div class="sb-user">Usuário: <b id="display-user">--</b><br>Nível: <span id="display-role">--</span></div>
+    <button onclick="location.reload()" class="btn" style="width: 100%; background: transparent; color: white; border-color: rgba(255,255,255,0.2);">Sair do Sistema</button>
+</div>
+
+<div class="content">
+    <div class="metrics">
+        <div class="mc"><div class="ml">Fila Atual</div><div id="stat-ativos" class="mv">0</div><div class="ms">Tickets ativos agora</div></div>
+        <div class="mc"><div class="ml">Tempo Médio (TMA)</div><div id="stat-tma" class="mv">00:00</div><div class="ms">Média de espera</div></div>
+        <div class="mc"><div class="ml">Finalizados</div><div id="stat-concluidos" class="mv">0</div><div class="ms">Eficiência: <span id="stat-eficiencia">0%</span></div></div>
+    </div>
+
+    <div class="panel">
+        <div class="filters">
+            <input type="text" id="search" class="fi" placeholder="Filtrar por cliente..." onkeyup="render()">
+            <button class="btn btn-s" id="btn-export" onclick="alert('Relatório Gerado!')">Exportar Excel</button>
+            <button class="btn btn-p" onclick="addTicket()">+ Novo Ticket</button>
+        </div>
+        <table class="tbl" id="tabela">
+            <thead><tr><th>ID</th><th>Cliente</th><th>Assunto</th><th>Status</th><th>Tempo</th><th>Ação</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    let db = [
+        { id: '5501', cliente: 'Mercado Livre', assunto: 'Atraso na entrega', status: 'critico', inicio: Date.now() - 600000 },
+        { id: '5504', cliente: 'João Silva', assunto: 'Troca de senha', status: 'aberto', inicio: Date.now() - 120000 }
+    ];
+    let concluídos = 0;
+    let role = 'op';
+
+    function fazerLogin() {
+        const u = document.getElementById('user-input').value.toLowerCase();
+        if(u === 'admin' || u === 'op') {
+            role = u;
+            document.getElementById('display-user').innerText = u.toUpperCase();
+            document.getElementById('display-role').innerText = u === 'admin' ? 'Administrador' : 'Operador';
+            document.getElementById('login-screen').style.display = 'none';
+            if(role === 'op') document.getElementById('btn-export').style.display = 'none';
+            render();
+        } else { alert('Use "admin" ou "op" para visualizar'); }
+    }
+
+    function render() {
+        const termo = document.getElementById('search').value.toLowerCase();
+        const tbody = document.querySelector('#tabela tbody');
+        const filtrados = db.filter(at => at.cliente.toLowerCase().includes(termo));
+        
+        tbody.innerHTML = filtrados.map((at, i) => `
+            <tr class="${at.status === 'critico' ? 'row-danger' : ''}">
+                <td>#${at.id}</td>
+                <td><strong>${at.cliente}</strong></td>
+                <td>${at.assunto}</td>
+                <td><span class="sp ${at.status === 'critico' ? 'bd-' : 'bi'}"><i style="width:6px;height:6px;background:currentColor;border-radius:50%"></i>${at.status.toUpperCase()}</span></td>
+                <td class="tempo" data-ini="${at.inicio}">00:00</td>
+                <td>${role === 'admin' ? `<button class="btn btn-s" onclick="concluir(${i})">Concluir</button>` : '---'}</td>
+            </tr>
+        `).join('');
+        updateStats();
+    }
+
+    function updateStats() {
+        document.getElementById('stat-ativos').innerText = db.length;
+        document.getElementById('stat-concluidos').innerText = concluídos;
+        const total = db.length + concluídos;
+        document.getElementById('stat-eficiencia').innerText = total > 0 ? Math.round((concluídos/total)*100)+'%' : '0%';
+    }
+
+    function concluir(i) { db.splice(i, 1); concluídos++; render(); }
+
+    function addTicket() {
+        const nome = prompt("Nome do Cliente:");
+        if(nome) {
+            db.unshift({ id: Math.floor(1000+Math.random()*9000), cliente: nome, assunto: "Novo Suporte", status: 'aberto', inicio: Date.now() });
+            render();
+        }
+    }
+
+    setInterval(() => {
+        document.querySelectorAll('.tempo').forEach(td => {
+            const seg = Math.floor((Date.now() - td.dataset.ini)/1000);
+            td.innerText = `${Math.floor(seg/60).toString().padStart(2,'0')}:${(seg%60).toString().padStart(2,'0')}`;
+        });
+    }, 1000);
+</script>
+</body>
+</html>
