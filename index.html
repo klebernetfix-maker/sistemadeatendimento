@@ -1812,13 +1812,21 @@
               </div>
               <div class="field">
                 <label class="label">Status</label>
-                <select class="select" id="f-status">
+                <select class="select" id="f-status" onchange="toggleAgendamentoFields()">
                   <option>Pendente</option>
                   <option>Agendado</option>
                   <option>Finalizado c/ Sucesso</option>
                   <option>Finalizado c/ Ressalvas</option>
                   <option>Finalizado s/ Sucesso</option>
                 </select>
+              </div>
+              <div class="field" id="f-agendamento-data-wrap" style="display:none;">
+                <label class="label">Data do Agendamento</label>
+                <input class="input" type="date" id="f-agendamento-data">
+              </div>
+              <div class="field" id="f-agendamento-hora-wrap" style="display:none;">
+                <label class="label">Horario do Agendamento</label>
+                <input class="input" type="time" id="f-agendamento-hora">
               </div>
               <div class="field full">
                 <label class="label">Motivo</label>
@@ -2788,6 +2796,14 @@
     function formatMoney(value) {
       return Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
     }
+    function getAgendaDateIso(record) {
+      if (!record) return "";
+      return record.status === "Agendado" && record.agendDataIso ? record.agendDataIso : record.dataIso;
+    }
+    function getAgendaDateLabel(record) {
+      if (!record) return "";
+      return record.status === "Agendado" && record.agendData ? record.agendData : record.data;
+    }
     function normalizePhone(value) {
       const digits = String(value || "").replace(/\D/g, "");
       if (!digits) return "";
@@ -3696,12 +3712,12 @@
 
       const hojeIso = isoToday();
       const hoje = state.records
-        .filter(item => item.dataIso === hojeIso)
+        .filter(item => getAgendaDateIso(item) === hojeIso)
         .sort((a, b) => a.cod - b.cod);
       const pendentesHoje = hoje.filter(item => item.status === "Pendente" || item.status === "Agendado");
       const proximos = [...state.records]
-        .filter(item => item.dataIso >= hojeIso && (item.status === "Pendente" || item.status === "Agendado"))
-        .sort((a, b) => a.dataIso.localeCompare(b.dataIso) || a.cod - b.cod)
+        .filter(item => getAgendaDateIso(item) >= hojeIso && (item.status === "Pendente" || item.status === "Agendado"))
+        .sort((a, b) => getAgendaDateIso(a).localeCompare(getAgendaDateIso(b)) || a.cod - b.cod)
         .slice(0, 3);
       const firstName = (state.currentUser || "Equipe").split(" ")[0];
       const greeting = getGreetingLabel();
@@ -3739,7 +3755,7 @@
             '<div class="welcome-item-top">' +
               '<div>' +
                 '<div class="welcome-item-title">' + esc(item.cliente) + '</div>' +
-                '<div class="welcome-item-meta">#' + item.cod + ' • ' + esc(item.op) + ' • ' + esc(item.data) + '</div>' +
+                '<div class="welcome-item-meta">#' + item.cod + ' • ' + esc(item.op) + ' • ' + esc(getAgendaDateLabel(item) + (item.agendHora ? " • " + item.agendHora : "")) + '</div>' +
               '</div>' +
               statusBadge(item.status) +
             '</div>' +
@@ -3857,6 +3873,8 @@
       document.getElementById("f-cliente").value = "";
       document.getElementById("f-contato").value = "";
       document.getElementById("f-data").value = isoToday();
+      document.getElementById("f-agendamento-data").value = "";
+      document.getElementById("f-agendamento-hora").value = "";
       populateSelects();
       if (state.currentUser && state.currentUser !== "Administrador") {
         document.getElementById("f-operador").value = state.currentUser;
@@ -3869,6 +3887,7 @@
       document.getElementById("f-detalhe").value = "";
       document.getElementById("f-resolucao").value = "";
       renderSelectedFormClient("");
+      toggleAgendamentoFields();
     }
 
     function setQuickForma(forma) {
@@ -3877,6 +3896,17 @@
 
     function setQuickStatus(status) {
       document.getElementById("f-status").value = status;
+      toggleAgendamentoFields();
+    }
+
+    function toggleAgendamentoFields() {
+      const isAgendado = document.getElementById("f-status").value === "Agendado";
+      document.getElementById("f-agendamento-data-wrap").style.display = isAgendado ? "" : "none";
+      document.getElementById("f-agendamento-hora-wrap").style.display = isAgendado ? "" : "none";
+      if (!isAgendado) {
+        document.getElementById("f-agendamento-data").value = "";
+        document.getElementById("f-agendamento-hora").value = "";
+      }
     }
 
     function setQuickMotivo(motivo) {
@@ -3945,8 +3975,16 @@
       const cliente = document.getElementById("f-cliente").value;
       const op = document.getElementById("f-operador").value;
       const dataIso = document.getElementById("f-data").value;
+      const status = document.getElementById("f-status").value;
+      const agendDataIso = document.getElementById("f-agendamento-data").value;
+      const agendHora = document.getElementById("f-agendamento-hora").value;
       if (!cliente || !op || !dataIso) {
         notify("Preencha cliente, operador e data");
+        return;
+      }
+      if (status === "Agendado" && !agendDataIso) {
+        notify("Informe a data do agendamento");
+        document.getElementById("f-agendamento-data").focus();
         return;
       }
 
@@ -3955,7 +3993,10 @@
         op,
         dataIso,
         data: formatDate(dataIso),
-        status: document.getElementById("f-status").value,
+        status,
+        agendDataIso: status === "Agendado" ? agendDataIso : "",
+        agendData: status === "Agendado" && agendDataIso ? formatDate(agendDataIso) : "",
+        agendHora: status === "Agendado" ? agendHora : "",
         contato: document.getElementById("f-contato").value.trim(),
         forma: document.getElementById("f-forma").value,
         motivo: document.getElementById("f-motivo").value.trim(),
@@ -4000,9 +4041,12 @@
       document.getElementById("f-operador").value = item.op;
       document.getElementById("f-forma").value = item.forma || "Interno";
       document.getElementById("f-status").value = item.status;
+      document.getElementById("f-agendamento-data").value = item.agendDataIso || "";
+      document.getElementById("f-agendamento-hora").value = item.agendHora || "";
       document.getElementById("f-motivo").value = item.motivo || "";
       document.getElementById("f-detalhe").value = item.detalhe || "";
       document.getElementById("f-resolucao").value = item.resolucao || "";
+      toggleAgendamentoFields();
       switchPage("novo");
     }
 
@@ -4023,7 +4067,7 @@
       const agendaList = document.getElementById("agenda-list");
       const agendaSummary = document.getElementById("agenda-summary");
       const hojeIso = isoToday();
-      const hoje = state.records.filter(item => item.dataIso === hojeIso);
+      const hoje = state.records.filter(item => getAgendaDateIso(item) === hojeIso);
       const pendentesHoje = hoje.filter(item => item.status === "Pendente" || item.status === "Agendado");
       const sucessoHoje = hoje.filter(item => item.status === "Finalizado c/ Sucesso");
       const pendentesGeral = state.records.filter(item => item.status === "Pendente" || item.status === "Agendado");
@@ -4053,7 +4097,7 @@
               '<div class="agenda-day-top">' +
                 '<div style="display:grid;gap:4px;">' +
                   '<div class="agenda-day-title">' + esc(item.cliente) + '</div>' +
-                  '<div class="agenda-day-meta">#' + item.cod + ' • ' + esc(item.op) + ' • ' + esc(item.data) + '</div>' +
+                  '<div class="agenda-day-meta">#' + item.cod + ' • ' + esc(item.op) + ' • ' + esc(getAgendaDateLabel(item) + (item.agendHora ? " • " + item.agendHora : "")) + '</div>' +
                 '</div>' +
                 '<div style="text-align:right;display:grid;gap:6px;justify-items:end;">' +
                   statusBadge(item.status) +
