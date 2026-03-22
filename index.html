@@ -785,6 +785,15 @@
       border: 1px solid rgba(26,32,53,.06);
       background: rgba(248,250,255,.85);
     }
+    .stat-row.clickable {
+      cursor: pointer;
+      transition: .16s ease;
+    }
+    .stat-row.clickable:hover {
+      transform: translateY(-1px);
+      border-color: rgba(43,127,255,.22);
+      box-shadow: 0 10px 22px rgba(43,127,255,.10);
+    }
     .stat-row-top {
       display: flex;
       align-items: center;
@@ -795,6 +804,69 @@
     }
     .stat-row-top span { color: var(--text-2); }
     .stat-row-top strong { font-size: 16px; color: var(--text); }
+    .wpp-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      background: rgba(43,127,255,.10);
+      color: var(--blue-2);
+      border: 1px solid rgba(43,127,255,.18);
+    }
+    .wpp-status-pill::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: .9;
+    }
+    .wpp-status-pill.connected {
+      background: rgba(26,158,92,.12);
+      color: var(--success);
+      border-color: rgba(26,158,92,.20);
+    }
+    .wpp-status-pill.warning {
+      background: rgba(200,138,16,.12);
+      color: var(--warning);
+      border-color: rgba(200,138,16,.20);
+    }
+    .wpp-status-pill.danger {
+      background: rgba(214,48,48,.10);
+      color: var(--danger);
+      border-color: rgba(214,48,48,.20);
+    }
+    .wpp-client-card {
+      border: 1px solid rgba(26,32,53,.08);
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(255,255,255,.74) 0%, rgba(248,250,255,.96) 100%);
+      padding: 14px 16px;
+    }
+    .wpp-template-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .wpp-template-btn {
+      border: 1px solid rgba(26,32,53,.10);
+      border-radius: 999px;
+      background: rgba(255,255,255,.8);
+      color: var(--text-2);
+      padding: 7px 11px;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .wpp-template-btn:hover {
+      border-color: rgba(43,127,255,.20);
+      color: var(--blue-2);
+    }
     .bar { margin-top: 8px; height: 7px; border-radius: 999px; overflow: hidden; background: rgba(26,32,53,.08); }
     .bar-fill { height: 100%; border-radius: 999px; }
 
@@ -1347,6 +1419,11 @@
       align-items:center;
       gap:8px;
     }
+    .settings-user-tab-wrap {
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+    }
     .settings-user-tab.active {
       color:var(--blue-2);
       border-bottom-color:rgba(43,127,255,.55);
@@ -1423,6 +1500,25 @@
       font-size:13px;
       color:var(--blue-2);
       font-weight:700;
+    }
+    .settings-user-remove {
+      border:none;
+      background:rgba(214,48,48,.08);
+      color:var(--danger);
+      width:22px;
+      height:22px;
+      border-radius:50%;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      font-size:12px;
+      font-weight:800;
+      transition:all .16s ease;
+    }
+    .settings-user-remove:hover {
+      background:rgba(214,48,48,.16);
+      transform:translateY(-1px);
     }
     .settings-palette-row {
       display:flex;
@@ -2247,9 +2343,12 @@
                 <div class="stat-row" style="text-align:center;padding:24px;">
                   <div id="wpp-status-title" style="font-size:18px;font-weight:800;color:var(--text);">Conectar WhatsApp Web</div>
                   <div id="wpp-status-sub" style="font-size:12px;color:var(--text-2);margin-top:8px;">Abra o WhatsApp Web em uma janela lateral e escaneie o QR Code com o celular para sincronizar sua conta.</div>
+                  <div id="wpp-status-pill-wrap" style="margin-top:14px;"></div>
                   <div style="margin-top:16px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
                     <button class="btn primary" id="wpp-connect-btn" onclick="openWhatsAppWeb()">Abrir janela WhatsApp</button>
                     <button class="btn" type="button" onclick="markWhatsappConnected()">Ja conectei</button>
+                    <button class="btn" type="button" onclick="refreshWhatsappWindowStatus()">Atualizar status</button>
+                    <button class="btn danger" type="button" onclick="disconnectWhatsapp()">Desconectar painel</button>
                   </div>
                   <div id="wpp-qr-box" style="margin-top:18px;padding:24px;border-radius:16px;background:#f7f9ff;border:1px dashed rgba(26,32,53,.14);font-size:12px;color:var(--text-3);line-height:1.7;">
                     1. Clique em <strong>Abrir janela WhatsApp</strong>.<br>
@@ -2269,6 +2368,7 @@
                 <label class="label">Cliente</label>
                 <select class="select" id="wpp-client-select" onchange="syncWhatsappClientPhone()"></select>
               </div>
+              <div id="wpp-client-card" class="wpp-client-card" style="margin-top:12px;"></div>
               <div class="field" style="margin-top:12px;">
                 <label class="label">Telefone do cliente</label>
                 <input class="input" id="wpp-client-number" placeholder="(43) 99999-0000">
@@ -2280,9 +2380,16 @@
               <div class="field" style="margin-top:12px;">
                 <label class="label">Mensagem</label>
                 <textarea class="textarea" id="wpp-message" placeholder="Digite a mensagem..."></textarea>
+                <div class="wpp-template-row">
+                  <button class="wpp-template-btn" type="button" onclick="fillWhatsappTemplate('saudacao')">Saudacao</button>
+                  <button class="wpp-template-btn" type="button" onclick="fillWhatsappTemplate('retorno')">Retorno</button>
+                  <button class="wpp-template-btn" type="button" onclick="fillWhatsappTemplate('confirmacao')">Confirmacao</button>
+                  <button class="wpp-template-btn" type="button" onclick="fillWhatsappTemplate('cobranca')">Cobranca</button>
+                </div>
               </div>
               <div style="margin-top:14px;display:flex;gap:8px;">
                 <button class="btn primary" onclick="sendWhatsappMessage()">Abrir conversa</button>
+                <button class="btn" type="button" onclick="openWhatsAppWeb()">Trazer janela</button>
               </div>
               <div id="wpp-log" class="stats-list" style="margin-top:14px;"></div>
             </div>
@@ -2950,7 +3057,7 @@
       const active = state.settings.permissoes_usuario_ativo || "admin_interno";
       const existingAdmin = state.settings.perfis_usuarios.admin_interno || {};
       state.settings.perfis_usuarios.admin_interno = {
-        nome: "Admin",
+        nome: state.adminName || existingAdmin.nome || "Administrador",
         role: "Administrador",
         permissions: {
           ...buildPermissionProfile("Administrador"),
@@ -3151,6 +3258,20 @@
       if (changed) persistState(false);
     }
 
+    async function forceOneTimeAdminCredentialReset() {
+      const resetKey = "sisvip_admin_reset_20260322";
+      if (localStorage.getItem(resetKey) === "done") return;
+
+      state.adminName = "Administrador";
+      state.adminEmail = "admin@sisvip.local";
+      state.adminPassword = await hashPassword("admin");
+      state.currentUser = "";
+      state.currentRole = "";
+      saveRecoveryTokens([]);
+      persistState(false);
+      localStorage.setItem(resetKey, "done");
+    }
+
     function setClienteCnpjStatus(message, tone) {
       const el = document.getElementById("cliente-cnpj-status");
       if (!el) return;
@@ -3348,7 +3469,8 @@
         return null;
       }
 
-      if (selected === "admin") {
+      const adminAliases = getAdminLoginAliases();
+      if (adminAliases.includes(selected)) {
         const adminEmail = String(state.adminEmail || "admin@sisvip.local").toLowerCase();
         if (!email || email === adminEmail) return { type: "admin", email: adminEmail };
         return null;
@@ -3358,7 +3480,7 @@
         const byEmail = state.operadores.find(op => String(op.email || "").trim().toLowerCase() === email);
         if (byEmail) return { type: "operador", operador: byEmail, email: byEmail.email || "" };
         const adminEmail = String(state.adminEmail || "admin@sisvip.local").toLowerCase();
-        if (email === "admin" || email === adminEmail) return { type: "admin", email: adminEmail };
+        if (adminAliases.includes(email) || email === adminEmail) return { type: "admin", email: adminEmail };
       }
 
       return null;
@@ -3369,6 +3491,17 @@
       return account.type === "admin"
         ? "administrador interno"
         : 'operador "' + (account.operador.nome || "sem nome") + '"';
+    }
+
+    function getAdminLoginAliases() {
+      const adminName = String(state.adminName || "Administrador").trim().toLowerCase();
+      return Array.from(new Set([
+        "admin",
+        String(state.adminEmail || "admin@sisvip.local").trim().toLowerCase(),
+        adminName,
+        adminName.replace(/\s+/g, ""),
+        adminName.split(" ")[0]
+      ].filter(Boolean)));
     }
 
     function syncForgotPasswordIdentity() {
@@ -3529,8 +3662,8 @@
         return;
       }
 
-      const adminEmail = String(state.adminEmail || "admin@sisvip.local").trim().toLowerCase();
-      if ((user === "admin" || user === adminEmail) && await verifyPassword(pass, state.adminPassword || "admin")) {
+      const adminAliases = getAdminLoginAliases();
+      if (adminAliases.includes(user) && await verifyPassword(pass, state.adminPassword || "admin")) {
         if (!isPasswordStoredAsHash(state.adminPassword || "")) {
           state.adminPassword = await hashPassword(pass);
           persistState(false);
@@ -4995,10 +5128,10 @@
             '<div class="settings-grid-2">' +
               settingsInput("cfg-digisac-url", "URL base da Digisac", digisac.base_url || "") +
               settingsInput("cfg-digisac-token", "Token da API", digisac.token || "") +
-              settingsInput("cfg-digisac-service", "serviceId", digisac.service_id || "") +
+              settingsInput("cfg-digisac-service", "serviceId da conexao (copie da URL da Digisac)", digisac.service_id || "") +
               settingsInput("cfg-digisac-inbox", "Inbox / canal padrao", digisac.inbox_id || "") +
             '</div>' +
-            '<div class="settings-inline-note">Dica: mantenha token e serviceId apenas para uso interno e nunca expose isso em ambientes publicos sem camada segura.</div>' +
+            '<div class="settings-inline-note">Para localizar o serviceId, abra a conexao na Digisac e copie o trecho final da URL em <strong>/services/...</strong>. Dica: mantenha token e serviceId apenas para uso interno e nunca expose isso em ambientes publicos sem camada segura.</div>' +
           '</div>' +
           '<div class="settings-section">' +
             '<div class="settings-section-head"><div><div class="settings-section-title">🧠 Regras de uso no SisVip</div><div class="settings-section-note">Defina como a equipe vai operar a Digisac dentro do fluxo do sistema.</div></div></div>' +
@@ -5067,7 +5200,7 @@
           '<div class="settings-section">' +
             '<div class="settings-section-head"><div><div class="settings-section-title">🔐 Permissoes por usuario</div><div class="settings-section-note">Selecione o usuario e ajuste exatamente quais recursos ele pode acessar dentro do sistema.</div></div></div>' +
             '<div class="settings-user-strip">' +
-              Object.entries(permissionUsers).map(([key, user]) => '<button type="button" class="settings-user-tab ' + (key === activeUserKey ? 'active' : '') + '" onclick="setPermissionUser(\'' + key + '\')"><span class="settings-user-dot ' + (key === "admin_interno" ? 'admin' : 'operador') + '"></span><span>' + esc(user.nome) + '</span>' + (user.role === "Administrador" ? '<span class="settings-role-pill">admin</span>' : '') + '</button>').join("") +
+              Object.entries(permissionUsers).map(([key, user]) => '<div class="settings-user-tab-wrap"><button type="button" class="settings-user-tab ' + (key === activeUserKey ? 'active' : '') + '" onclick="setPermissionUser(\'' + key + '\')"><span class="settings-user-dot ' + (key === "admin_interno" ? 'admin' : 'operador') + '"></span><span>' + esc(user.nome) + '</span>' + (user.role === "Administrador" ? '<span class="settings-role-pill">admin</span>' : '') + '</button>' + (key !== "admin_interno" ? '<button type="button" class="settings-user-remove" title="Remover usuario" onclick="event.stopPropagation(); removePermissionUser(\'' + key + '\')">×</button>' : '') + '</div>').join("") +
               '<button type="button" class="settings-user-tab" onclick="switchPage(\'operadores\')">＋ Adicionar usuario</button>' +
             '</div>' +
           '</div>' +
@@ -5167,6 +5300,48 @@
       state.settings = state.settings || {};
       state.settings.permissoes_usuario_ativo = key;
       renderConfiguracoes();
+    }
+
+    function removePermissionUser(key) {
+      if (!canAccess("gerenciar_permissoes")) {
+        notify("Seu perfil nao pode remover usuarios por aqui");
+        return;
+      }
+      if (!key || key === "admin_interno") {
+        notify("O administrador interno nao pode ser removido");
+        return;
+      }
+      const users = ensurePermissionProfiles();
+      const profile = users[key];
+      if (!profile) {
+        notify("Usuario nao encontrado");
+        return;
+      }
+      const operatorId = Number(String(key).replace("operador_", ""));
+      const operador = state.operadores.find(op => op.id === operatorId);
+      if (!operador) {
+        delete state.settings.perfis_usuarios[key];
+        state.settings.permissoes_usuario_ativo = "admin_interno";
+        persistState();
+        renderConfiguracoes();
+        notify("Usuario removido da lista de permissoes");
+        return;
+      }
+      if (!confirm('Remover o usuario "' + operador.nome + '" do sistema?')) return;
+      state.operadores = state.operadores.filter(op => op.id !== operatorId);
+      ensurePermissionProfiles();
+      if (state.currentUser === operador.nome) {
+        fazerLogout();
+      }
+      state.settings.permissoes_usuario_ativo = "admin_interno";
+      persistState();
+      populateSelects();
+      renderOperadores();
+      renderLoginHelp();
+      populateForgotUsers();
+      applyPermissionVisibility();
+      renderConfiguracoes();
+      notify("Usuario removido com sucesso");
     }
 
     function setSystemTheme(theme) {
@@ -5375,11 +5550,17 @@
 
     function renderWhatsapp() {
       const connected = state.whatsappConnected;
+      const sideWindowOpen = !!(whatsappSideWindow && !whatsappSideWindow.closed);
       document.getElementById("wpp-status-title").textContent = connected ? "WhatsApp Web pronto para uso" : "Conectar WhatsApp Web";
       document.getElementById("wpp-status-sub").textContent = connected
         ? "Se a janela lateral ja estiver conectada, voce pode abrir conversas com os clientes abaixo."
         : "Abra o WhatsApp Web em uma janela lateral e escaneie o QR Code com o celular para sincronizar sua conta.";
       document.getElementById("wpp-connect-btn").textContent = connected ? "Abrir janela WhatsApp" : "Abrir janela WhatsApp";
+      document.getElementById("wpp-status-pill-wrap").innerHTML = sideWindowOpen
+        ? '<span class="wpp-status-pill connected">Janela lateral aberta</span>'
+        : connected
+          ? '<span class="wpp-status-pill warning">Conectado manualmente</span>'
+          : '<span class="wpp-status-pill danger">Aguardando conexao</span>';
       document.getElementById("wpp-qr-box").innerHTML = connected
         ? '<div style="text-align:center;line-height:1.7;"><div style="font-size:44px;color:var(--success);margin-bottom:8px;">✓</div><div style="font-size:12px;color:var(--text-2);">Conexao marcada como pronta.</div><div style="font-size:12px;color:var(--text-2);margin-top:8px;">Se a janela lateral estiver aberta, os atalhos abaixo vao reutilizar a mesma conversa ou abrir uma nova nela.</div></div>'
         : '1. Clique em <strong>Abrir janela WhatsApp</strong>.<br>2. No celular, abra o WhatsApp.<br>3. Entre em <strong>Dispositivos conectados</strong>.<br>4. Escaneie o QR Code mostrado na janela lateral.';
@@ -5387,13 +5568,14 @@
       syncWhatsappClientPhone();
       document.getElementById("wpp-client-number").value = state.whatsappClientNumber || document.getElementById("wpp-client-number").value || "";
       document.getElementById("wpp-company-number").value = state.whatsappCompanyNumber || "";
+      renderWhatsappClientCard();
       const log = document.getElementById("wpp-log");
       if (!state.whatsappLogs.length) {
         log.innerHTML = '<div class="stat-row"><div style="font-size:12px;color:var(--text-2);">Nenhuma conversa aberta ainda por este painel.</div></div>';
         return;
       }
       log.innerHTML = state.whatsappLogs.map(entry => {
-        return '<div class="stat-row"><div class="stat-row-top"><span>' + esc(entry.client || entry.number) + '</span><strong>' + esc(entry.at) + '</strong></div><div style="font-size:12px;color:var(--text-2);line-height:1.5;margin-top:8px;">' + esc(entry.message) + '</div></div>';
+        return '<div class="stat-row clickable" onclick="reopenWhatsappLog(' + entry.id + ')"><div class="stat-row-top"><span>' + esc(entry.client || entry.number) + '</span><strong>' + esc(entry.at) + '</strong></div><div style="font-size:12px;color:var(--text-2);line-height:1.5;margin-top:8px;">' + esc(entry.message) + '</div><div style="font-size:11px;color:var(--blue-2);margin-top:8px;font-weight:700;">Clique para reabrir essa conversa</div></div>';
       }).join("");
     }
 
@@ -5442,6 +5624,7 @@
         return;
       }
       openWhatsappSideWindow("https://web.whatsapp.com/");
+      refreshWhatsappWindowStatus();
     }
 
     function markWhatsappConnected() {
@@ -5455,6 +5638,21 @@
       notify("WhatsApp Web marcado como conectado");
     }
 
+    function refreshWhatsappWindowStatus() {
+      if (whatsappSideWindow && !whatsappSideWindow.closed) {
+        state.whatsappConnected = true;
+      }
+      persistState(false);
+      renderWhatsapp();
+    }
+
+    function disconnectWhatsapp() {
+      state.whatsappConnected = false;
+      persistState();
+      renderWhatsapp();
+      notify("Painel do WhatsApp marcado como desconectado");
+    }
+
     function syncWhatsappClientPhone() {
       const clientName = document.getElementById("wpp-client-select").value;
       const phoneInput = document.getElementById("wpp-client-number");
@@ -5462,7 +5660,63 @@
       const cliente = state.clientes.find(item => item.nome === clientName);
       if (cliente && cliente.tel) {
         phoneInput.value = cliente.tel;
+        state.whatsappClientNumber = cliente.tel;
+      } else if (cliente && !cliente.tel) {
+        phoneInput.value = "";
       }
+      renderWhatsappClientCard();
+    }
+
+    function renderWhatsappClientCard() {
+      const wrap = document.getElementById("wpp-client-card");
+      if (!wrap) return;
+      const clientName = document.getElementById("wpp-client-select").value;
+      const cliente = state.clientes.find(item => item.nome === clientName);
+      if (!cliente) {
+        wrap.innerHTML = '<div style="font-size:12px;color:var(--text-2);">Selecione um cliente para preencher telefone, documento e usar mensagens mais rapidas.</div>';
+        return;
+      }
+      const phone = cliente.tel || "Telefone nao cadastrado";
+      const doc = cliente.doc || "Documento nao informado";
+      const email = cliente.email || "Email nao informado";
+      wrap.innerHTML =
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">' +
+          '<div>' +
+            '<div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-2);margin-bottom:4px;">Cliente selecionado</div>' +
+            '<div style="font-size:15px;font-weight:800;color:var(--text);">' + esc(cliente.nome) + '</div>' +
+            '<div style="font-size:12px;color:var(--text-2);line-height:1.7;margin-top:6px;">' + esc(phone) + '<br>' + esc(doc) + '<br>' + esc(email) + '</div>' +
+          '</div>' +
+          (cliente.tel ? '<span class="wpp-status-pill connected">Numero pronto</span>' : '<span class="wpp-status-pill warning">Cadastre o telefone</span>') +
+        '</div>';
+    }
+
+    function fillWhatsappTemplate(type) {
+      const clientName = document.getElementById("wpp-client-select").value || "cliente";
+      const area = document.getElementById("wpp-message");
+      if (!area) return;
+      const templates = {
+        saudacao: "Ola, " + clientName + "! Tudo bem? Estou entrando em contato pelo SisVip para dar continuidade ao seu atendimento.",
+        retorno: "Ola, " + clientName + "! Estou retornando sobre o atendimento em aberto. Pode me confirmar se posso seguir por aqui?",
+        confirmacao: "Ola, " + clientName + "! Estou confirmando nosso agendamento/retorno. Se precisar ajustar o horario, me avise por aqui.",
+        cobranca: "Ola, " + clientName + "! Estou enviando este contato para alinhar uma pendencia financeira. Se preferir, posso explicar os detalhes por aqui."
+      };
+      area.value = templates[type] || area.value;
+      area.focus();
+    }
+
+    function reopenWhatsappLog(id) {
+      const entry = state.whatsappLogs.find(item => item.id === id);
+      if (!entry) return;
+      const normalized = normalizePhone(entry.number || "");
+      if (!normalized) {
+        notify("Nao foi possivel reabrir essa conversa");
+        return;
+      }
+      document.getElementById("wpp-client-select").value = entry.client && state.clientes.some(c => c.nome === entry.client) ? entry.client : "";
+      document.getElementById("wpp-client-number").value = entry.number || "";
+      document.getElementById("wpp-message").value = entry.message && entry.message !== "Conversa aberta sem mensagem predefinida." ? entry.message : "";
+      renderWhatsappClientCard();
+      openWhatsappSideWindow("https://wa.me/" + normalized + (entry.message ? "?text=" + encodeURIComponent(entry.message) : ""));
     }
 
     function sendWhatsappMessage() {
@@ -5477,7 +5731,15 @@
         notify("Informe o telefone do cliente");
         return;
       }
+      if (!client && !message) {
+        notify("Selecione um cliente ou escreva uma mensagem para abrir a conversa");
+        return;
+      }
       const normalized = normalizePhone(number);
+      if (!normalized) {
+        notify("Telefone invalido para abrir conversa");
+        return;
+      }
       const url = "https://wa.me/" + normalized + (message ? "?text=" + encodeURIComponent(message) : "");
       state.whatsappClientNumber = number;
       state.whatsappCompanyNumber = document.getElementById("wpp-company-number").value.trim();
@@ -5656,6 +5918,7 @@
     (async function startSisVip() {
       try {
         await migratePasswordStorage();
+        await forceOneTimeAdminCredentialReset();
         syncLoginScreen();
         applyUserToSidebar();
         renderLoginHelp();
