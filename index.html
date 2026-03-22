@@ -2392,6 +2392,14 @@
                 <button class="btn" type="button" onclick="openWhatsAppWeb()">Trazer janela</button>
               </div>
               <div id="wpp-log" class="stats-list" style="margin-top:14px;"></div>
+              <div class="panel" style="margin-top:14px;margin-bottom:0;">
+                <div class="panel-header"><div class="panel-title">Clientes recentes</div></div>
+                <div class="panel-body"><div id="wpp-recent-clients" class="stats-list"></div></div>
+              </div>
+              <div class="panel" style="margin-top:14px;margin-bottom:0;">
+                <div class="panel-header"><div class="panel-title">Ultimos atendimentos do cliente</div></div>
+                <div class="panel-body"><div id="wpp-client-records" class="stats-list"></div></div>
+              </div>
             </div>
           </div>
         </div>
@@ -2965,6 +2973,9 @@
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#39;");
+    }
+    function jsq(value) {
+      return JSON.stringify(String(value == null ? "" : value));
     }
     function getInitials(name) {
       return String(name || "?").split(" ").map(item => item[0]).join("").slice(0, 2).toUpperCase();
@@ -4999,7 +5010,7 @@
       if (!tabsEl || !content) return;
 
       tabsEl.innerHTML = tabs.map(tab =>
-        '<button class="settings-tab ' + (tab.id === active ? 'active' : '') + '" onclick="setSettingsTab(\'' + tab.id + '\')"><span class="settings-tab-icon">' + tab.icon + '</span><span>' + tab.label + '</span></button>'
+        '<button class="settings-tab ' + (tab.id === active ? 'active' : '') + '" onclick="setSettingsTab(' + jsq(tab.id) + ')"><span class="settings-tab-icon">' + tab.icon + '</span><span>' + tab.label + '</span></button>'
       ).join("");
       titleEl.textContent = tabMeta.label;
       subEl.textContent = tabMeta.sub;
@@ -5070,7 +5081,7 @@
           '<div class="settings-section">' +
             '<div class="settings-section-head"><div><div class="settings-section-title">🏦 Selecione seu banco</div><div class="settings-section-note">Escolha a instituicao principal para recebimentos e integracoes futuras com cobranca automatica.</div></div></div>' +
             '<div class="settings-bank-grid">' +
-              bankCatalog.map(item => '<button type="button" class="settings-bank-card ' + (item.nome === selectedBank ? 'active' : '') + '" onclick="selectConfigBank(\'' + item.nome + '\', \'' + item.codigo + '\', ' + (item.api ? 'true' : 'false') + ')"><div class="settings-bank-dot" style="background:' + item.cor + ';"></div><div class="settings-bank-name">' + item.nome + '</div><div class="settings-bank-code">Cod. ' + item.codigo + '</div>' + (item.api ? '<div class="settings-bank-api">API disponivel</div>' : '') + '</button>').join("") +
+              bankCatalog.map(item => '<button type="button" class="settings-bank-card ' + (item.nome === selectedBank ? 'active' : '') + '" onclick="selectConfigBank(' + jsq(item.nome) + ', ' + jsq(item.codigo) + ', ' + (item.api ? 'true' : 'false') + ')"><div class="settings-bank-dot" style="background:' + item.cor + ';"></div><div class="settings-bank-name">' + item.nome + '</div><div class="settings-bank-code">Cod. ' + item.codigo + '</div>' + (item.api ? '<div class="settings-bank-api">API disponivel</div>' : '') + '</button>').join("") +
             '</div>' +
           '</div>' +
           '<div class="settings-section">' +
@@ -5230,7 +5241,7 @@
               { nome: "Verde", top: "linear-gradient(135deg,#26b46a,#38d996)" },
               { nome: "Cinza", top: "linear-gradient(135deg,#64748b,#94a3b8)" },
               { nome: "Laranja", top: "linear-gradient(135deg,#f08a24,#ffb14d)" }
-            ].map(item => '<button type="button" class="settings-palette-card ' + ((sys.tema || "Azul Royal") === item.nome ? 'active' : '') + '" onclick="setSystemTheme(\'' + item.nome + '\')"><div class="settings-palette-top" style="background:' + item.top + ';"></div><div class="settings-palette-name">' + item.nome + '</div></button>').join("") +
+            ].map(item => '<button type="button" class="settings-palette-card ' + ((sys.tema || "Azul Royal") === item.nome ? 'active' : '') + '" onclick="setSystemTheme(' + jsq(item.nome) + ')"><div class="settings-palette-top" style="background:' + item.top + ';"></div><div class="settings-palette-name">' + item.nome + '</div></button>').join("") +
           '</div>' +
         '</div>' +
         '<div class="settings-section">' +
@@ -5569,6 +5580,8 @@
       document.getElementById("wpp-client-number").value = state.whatsappClientNumber || document.getElementById("wpp-client-number").value || "";
       document.getElementById("wpp-company-number").value = state.whatsappCompanyNumber || "";
       renderWhatsappClientCard();
+      renderWhatsappRecentClients();
+      renderWhatsappClientRecords();
       const log = document.getElementById("wpp-log");
       if (!state.whatsappLogs.length) {
         log.innerHTML = '<div class="stat-row"><div style="font-size:12px;color:var(--text-2);">Nenhuma conversa aberta ainda por este painel.</div></div>';
@@ -5665,6 +5678,7 @@
         phoneInput.value = "";
       }
       renderWhatsappClientCard();
+      renderWhatsappClientRecords();
     }
 
     function renderWhatsappClientCard() {
@@ -5688,6 +5702,73 @@
           '</div>' +
           (cliente.tel ? '<span class="wpp-status-pill connected">Numero pronto</span>' : '<span class="wpp-status-pill warning">Cadastre o telefone</span>') +
         '</div>';
+    }
+
+    function renderWhatsappRecentClients() {
+      const wrap = document.getElementById("wpp-recent-clients");
+      if (!wrap) return;
+
+      const names = [];
+      state.whatsappLogs.forEach(entry => {
+        if (entry.client && !names.includes(entry.client)) names.push(entry.client);
+      });
+      state.records.slice().sort((a, b) => Number(b.cod || 0) - Number(a.cod || 0)).forEach(record => {
+        if (record.cliente && !names.includes(record.cliente)) names.push(record.cliente);
+      });
+
+      const recent = names.slice(0, 5).map(name => state.clientes.find(c => c.nome === name) || { nome: name });
+      if (!recent.length) {
+        wrap.innerHTML = '<div class="stat-row"><div style="font-size:12px;color:var(--text-2);">Os clientes mais recentes vao aparecer aqui para acelerar o contato.</div></div>';
+        return;
+      }
+
+      wrap.innerHTML = recent.map(cliente => {
+        const phone = cliente.tel || "Sem telefone";
+        const note = cliente.email || cliente.doc || cliente.seg || "Cadastro sem detalhes extras";
+        return '<div class="stat-row clickable" onclick="selectWhatsappClientByName(' + jsq(cliente.nome) + ')">' +
+          '<div class="stat-row-top"><span>' + esc(cliente.nome) + '</span><strong>' + esc(phone) + '</strong></div>' +
+          '<div style="font-size:12px;color:var(--text-2);line-height:1.5;margin-top:8px;">' + esc(note) + '</div>' +
+          '<div style="font-size:11px;color:var(--blue-2);margin-top:8px;font-weight:700;">Clique para preencher o envio rapido</div>' +
+        '</div>';
+      }).join("");
+    }
+
+    function renderWhatsappClientRecords() {
+      const wrap = document.getElementById("wpp-client-records");
+      if (!wrap) return;
+      const clientName = document.getElementById("wpp-client-select").value;
+      if (!clientName) {
+        wrap.innerHTML = '<div class="stat-row"><div style="font-size:12px;color:var(--text-2);">Selecione um cliente para ver os ultimos atendimentos relacionados.</div></div>';
+        return;
+      }
+
+      const records = state.records
+        .filter(item => item.cliente === clientName)
+        .sort((a, b) => Number(b.cod || 0) - Number(a.cod || 0))
+        .slice(0, 4);
+
+      if (!records.length) {
+        wrap.innerHTML = '<div class="stat-row"><div style="font-size:12px;color:var(--text-2);">Ainda nao ha atendimentos registrados para ' + esc(clientName) + '.</div></div>';
+        return;
+      }
+
+      wrap.innerHTML = records.map(record => {
+        return '<div class="stat-row clickable" onclick="editRecord(' + record.cod + ')">' +
+          '<div class="stat-row-top"><span>#' + record.cod + ' · ' + esc(record.motivo || "Atendimento") + '</span><strong>' + esc(record.status || "-") + '</strong></div>' +
+          '<div style="font-size:12px;color:var(--text-2);line-height:1.6;margin-top:8px;">' +
+            esc(formatDate(record.dataIso || isoToday())) + ' · ' + esc(record.op || "Sem operador") + ' · ' + esc(record.forma || "Sem forma") +
+          '</div>' +
+          '<div style="font-size:11px;color:var(--blue-2);margin-top:8px;font-weight:700;">Clique para abrir o atendimento</div>' +
+        '</div>';
+      }).join("");
+    }
+
+    function selectWhatsappClientByName(name) {
+      const select = document.getElementById("wpp-client-select");
+      if (!select) return;
+      select.value = name;
+      syncWhatsappClientPhone();
+      notify("Cliente carregado no envio rapido");
     }
 
     function fillWhatsappTemplate(type) {
